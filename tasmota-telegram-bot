@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+
+# A Telegram bot which periodically queries the active power usage of a 
+# Tasmota device and sends a message to a group of Telegram users if the
+# device is on but not drawing power.
+
+import json
+import telegram
+from dotenv import load_dotenv
+import os
+import asyncio
+import requests
+
+DOTENV_PATH = "/etc/tasmota-telegram-bot.env"
+STATE_DIR = "/var/lib/tasmota-telegram-bot"
+
+load_dotenv(DOTENV_PATH)
+
+TASMOTA_BASE_URL = os.getenv("TASMOTA_URL")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_IDS = os.getenv("CHAT_IDS").split(",")
+MESSAGE = os.getenv("MESSAGE")
+
+class Bot(object):
+    def __init__(self):
+        self.bot = telegram.Bot(token=BOT_TOKEN)
+
+    def send_message_to_all(self, message):    
+        for chat_id in CHAT_IDS:
+            self.send_message(chat_id, message)
+        print("Message sent successfully!")
+
+    def send_message(self, chat_id, message):
+        asyncio.run(self.bot.send_message(chat_id=chat_id, text=message))
+
+
+def main():
+    # Check if the device is powered on
+    response = requests.get(f"{TASMOTA_BASE_URL}/cm?cmnd=Status")
+
+    # Write the response to a file for debugging
+    with open(f"{STATE_DIR}/status.json", "w") as f:
+        json.dump(response.json(), f, indent=4)
+
+    is_powered_on = response.json()["Status"]["Power"] == "1"
+    if not is_powered_on:
+        print("Device is not powered on")
+        return
+
+    # Get the current power usage from the Tasmota device
+    response = requests.get(f"{TASMOTA_BASE_URL}/cm?cmnd=Status%208")
+
+    # Write the response to a file for debugging
+    with open(f"{STATE_DIR}/power.json", "w") as f:
+        json.dump(response.json(), f, indent=4)
+
+    power = response.json()["StatusSNS"]["ENERGY"]["Power"]
+
+    if power != 0:
+        print(f"Power usage is {power}W")
+        return
+
+    Bot().send_message_to_all(MESSAGE)
+
+if __name__ == "__main__":
+    main()

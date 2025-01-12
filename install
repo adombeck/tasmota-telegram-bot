@@ -1,0 +1,39 @@
+#!/bin/sh
+
+set -eu
+set -x
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "This script must be run as root"
+    exit 1
+fi
+
+SCRIPT_DIR=$(readlink -f "$(dirname $0)")
+
+# Make sure that the tasmota-telegram-bot user exists
+if ! getent passwd tasmota-telegram-bot > /dev/null 2>&1; then
+    useradd \
+        --system \
+        --home-dir /var/lib/tasmota-telegram-bot \
+        --create-home \
+        --shell /sbin/nologin \
+        --comment "Tasmota Telegram Bot" \
+        tasmota-telegram-bot
+    chmod 700 /var/lib/tasmota-telegram-bot
+fi
+
+install -m 755 "$SCRIPT_DIR/tasmota-telegram-bot" /usr/local/bin/
+install -m 644 "$SCRIPT_DIR/tasmota-telegram-bot.service" /etc/systemd/system/
+install -m 644 "$SCRIPT_DIR/tasmota-telegram-bot.timer" /etc/systemd/system/
+if ! [ -f /etc/tasmota-telegram-bot.env ]; then
+    install -m 600 -o tasmota-telegram-bot "$SCRIPT_DIR/tasmota-telegram-bot.env" /etc/tasmota-telegram-bot.env
+fi
+
+systemctl daemon-reload
+
+cat << EOF
+Edit the environment variables in /etc/tasmota-telegram-bot.env and run:
+
+systemctl enable tasmota-telegram-bot.timer
+systemctl start tasmota-telegram-bot.timer
+EOF

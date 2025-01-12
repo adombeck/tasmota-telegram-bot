@@ -1,0 +1,44 @@
+[Unit]
+Description=Tasmota Telegram Bot to notify when Tasmota device is not running
+Wants=tasmota-telegram-bot.timer
+
+[Service]
+Type=oneshot
+ExecStart=tasmota-telegram-bot
+LoadCredential=tasmota-telegram-bot.env:/etc/tasmota-telegram-bot.env
+User=tasmota-telegram-bot
+UMask=0077
+
+# Restrict filesystem access
+ProtectSystem=strict
+StateDirectory=tasmota-telegram-bot
+StateDirectoryMode=0700
+
+# Further sandboxing
+CapabilityBoundingSet=
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateUsers=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=yes
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictRealtime=true
+SystemCallFilter=@system-service ~@privileged ~@resources
+RemoveIPC=true
+SystemCallArchitectures=native
+MemoryDenyWriteExecute=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ProcSubset=pid
+DeviceAllow=/dev/null rw
+
+[Install]
+WantedBy=multi-user.target
